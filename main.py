@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 # Here we define any ACTUAL tools
 from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode
-from IPython.display import Image, display
 from PIL import Image as PILImage
 import io
+from langgraph.types import Command, interrupt
 
 load_dotenv()
 
@@ -122,10 +122,26 @@ memory = InMemorySaver()
 # Finally, we compile it!
 # This compiles it into a LangChain Runnable,
 # meaning you can use it as you would any other runnable
-app = workflow.compile(checkpointer=memory)
+graph = workflow.compile(checkpointer=memory)
 
 
-png_bytes = app.get_graph().draw_mermaid_png()
+png_bytes = graph.get_graph().draw_mermaid_png()
 image = PILImage.open(io.BytesIO(png_bytes))
 image.show()
 #display(Image(app.get_graph().draw_mermaid_png()))
+
+config = {"configurable": {"thread_id": "2"}}
+for event in graph.stream(
+    {
+        "messages": [
+            (
+                "user",
+                "Ask the user where they are, then look up the weather there",
+            )
+        ]
+    },
+    config,
+    stream_mode="values",
+):
+    if "messages" in event:
+        event["messages"][-1].pretty_print()
